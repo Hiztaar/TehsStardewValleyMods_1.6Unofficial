@@ -23,6 +23,7 @@ using TehPers.FishingOverhaul.Api.Extensions;
 using TehPers.FishingOverhaul.Config;
 using TehPers.FishingOverhaul.Extensions;
 using TehPers.FishingOverhaul.Extensions.Drawing;
+using TehPers.FishingOverhaul.Services;
 using SObject = StardewValley.Object;
 
 namespace TehPers.FishingOverhaul.Services.Setup
@@ -84,6 +85,10 @@ namespace TehPers.FishingOverhaul.Services.Setup
 
         public override void Setup()
         {
+            // --- ADD THIS LINE HERE ---
+            FrenzyQuery.Register();
+            // --------------------------
+
             this.Patch(
                 AccessTools.Method(typeof(FishingRod), nameof(FishingRod.tickUpdate)),
                 prefix: new(AccessTools.Method(typeof(FishingRodPatcher), nameof(FishingRodPatcher.TickUpdate_Prefix))),
