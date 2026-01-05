@@ -1,6 +1,6 @@
 # TehCore
 
-For **SDV** 1.5.5+ and **SMAPI** 3.13.0+
+For **SDV** 1.6.15 and **SMAPI** 4.3.2
 
 A core mod with the goal of enabling high levels of compatibility between mods.
 

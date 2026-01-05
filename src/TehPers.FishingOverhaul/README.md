@@ -1,17 +1,16 @@
 # Teh's Fishing Overhaul
 
-For **SDV** 1.5.5+ and **SMAPI** 3.13.0+
+For **SDV** 1.6.15 and **SMAPI** 4.3.2
 
 Completely reworks fishing:
 
 - Control every aspect of fishing! Configure the chances of hitting fish instead of trash, the difficulty of catching fish, the chances of finding treasure, what fish/treasure/trash you'll find, where you'll find it all, and how the fish behave.
   - Add new fish, adjust fish behaviors, and control where they can be caught. If you want to be able to catch diamonds, wearable boots, or even fishing rods while fishing, go ahead!
 - Perfect catches are more rewarding. As you get more perfect catches in a row, your streak increases, and fish become more valuable.
-- Legendary fish are no longer caught by standing in a specific spot and casting your line. Now, they are caught like any other fish, but there is a very low chance you'll find one!
 - Optional built-in fishing HUD. See what fish you can catch while you're fishing!
 - Support for [Generic Mod Config Menu][gmcm], including in-game config editing.
   - Some complex settings may not be modifiable through GMCM though.
-- Create your own content packs, or install a content pack created by someone else!
+- Built-in compatibility with any new fish and location added by any mod
 
 ## Configs
 
@@ -43,7 +42,5 @@ To use the API, check out the [API docs][api docs].
 This mod is licensed under MIT License. The source code and full license text can be found on the [GitHub repository][github repo].
 
 [gmcm]: https://www.nexusmods.com/stardewvalley/mods/5098
-[create a content pack]: https://stardewvalleywiki.com/Modding:Content_packs#Create_a_content_pack
-[content pack docs]: ../../docs/TehPers.FishingOverhaul/Content%20Packs.md
-[api docs]: ../../docs/TehPers.FishingOverhaul/API.md
+[api docs (Outdated)]: ../../docs/TehPers.FishingOverhaul/API.md
 [github repo]: ../../

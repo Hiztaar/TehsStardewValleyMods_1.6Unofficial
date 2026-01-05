@@ -2,7 +2,7 @@
   "$schema": "https://smapi.io/schemas/manifest.json",
   "Name": "TehCore",
   "Author": "TehPers",
-  "Version": "1.1.2-unofficial.3-Hiztaar",
+  "Version": "1.1.2",
   "Description": "Utility mod for creating highly compatible mods",
   "UniqueID": "TehPers.Core",
   "EntryDll": "TehPers.Core.dll",
