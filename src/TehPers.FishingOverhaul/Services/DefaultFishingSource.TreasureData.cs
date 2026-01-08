@@ -37,7 +37,7 @@ namespace TehPers.FishingOverhaul.Services
                     {
                         When = new Dictionary<string, string?>
                         {
-                            ["TehPers.FishingOverhaul/BooksFound"] = "{{Range: 0, 19}}",
+                            ["Hiztaar.FishingOverhaulRevived/BooksFound"] = "{{Range: 0, 19}}",
                         }.ToImmutableDictionary(),
                     }
                 )
@@ -218,7 +218,7 @@ namespace TehPers.FishingOverhaul.Services
                     {
                         When = new Dictionary<string, string?>
                         {
-                            ["TehPers.FishingOverhaul/SpecialOrderRuleActive"] =
+                            ["Hiztaar.FishingOverhaulRevived/SpecialOrderRuleActive"] =
                                 "DROP_QI_BEANS",
                         }.ToImmutableDictionary()
                     },

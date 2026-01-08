@@ -44,7 +44,7 @@ namespace TehPers.FishingOverhaul.Services
             var fishTraits = new Dictionary<NamespacedKey, FishTraits>();
             var baseAvailabilities = new Dictionary<NamespacedKey, FishAvailabilityInfo>();
 
-            // --- ETAPE 1 : Parsing Data/Fish ---
+            // --- STEP 1: Parsing Data/Fish ---
             foreach (var (rawKey, data) in fishData)
             {
                 var parts = data.Split('/');
@@ -67,12 +67,6 @@ namespace TehPers.FishingOverhaul.Services
                 var isVanillaLegendary = !isFamilyLegendary && ((tempItem != null && tempItem.HasContextTag("fish_legendary")) || legendaryFishIds.Contains(cleanId));
                 var isLegendary = isVanillaLegendary || isFamilyLegendary;
 
-                // CORRECTION CRITIQUE DES INDICES (1.6 Format)
-                // 0: Nom
-                // 1: Difficulté
-                // 2: Comportement
-                // 3: Taille Min
-                // 4: Taille Max
                 if (int.TryParse(parts[1], out var difficulty) &&
                     int.TryParse(parts[3], out var minSize) &&
                     int.TryParse(parts[4], out var maxSize))
@@ -95,7 +89,6 @@ namespace TehPers.FishingOverhaul.Services
                     };
                 }
 
-                // 9/10: Chance (Float)
                 if (!float.TryParse(parts[10], out var chance))
                 {
                     if (!float.TryParse(parts[9], out chance))
@@ -104,7 +97,6 @@ namespace TehPers.FishingOverhaul.Services
                     }
                 }
 
-                // 11/12: Min Level (Int)
                 if (!int.TryParse(parts[12], out var minLevel))
                 {
                     if (!int.TryParse(parts[11], out minLevel))
@@ -113,7 +105,6 @@ namespace TehPers.FishingOverhaul.Services
                     }
                 }
 
-                // 5: Heures, 6: Saisons, 7: Météo
                 var baseInfo = new FishAvailabilityInfo(chance)
                 {
                     MinFishingLevel = minLevel,
@@ -129,7 +120,7 @@ namespace TehPers.FishingOverhaul.Services
                 baseAvailabilities[fishKey] = baseInfo;
             }
 
-            // --- ETAPE 2 : Data/Locations ---
+            // --- STEP 2: Iterate Data/Locations ---
             foreach (var (locName, locData) in locationData)
             {
                 if (locData.Fish == null)
@@ -161,12 +152,13 @@ namespace TehPers.FishingOverhaul.Services
 
                     var isFamilyLegendary = (tempItem != null && tempItem.HasContextTag("fish_legendary_family")) || legendaryFamilyIds.Contains(cleanId);
                     var isVanillaLegendary = !isFamilyLegendary && ((tempItem != null && tempItem.HasContextTag("fish_legendary")) || legendaryFishIds.Contains(cleanId));
+                    var isLegendary = isVanillaLegendary || isFamilyLegendary;
 
                     var info = baseAvailabilities.TryGetValue(fishKey, out var baseAvail)
                         ? baseAvail
                         : new FishAvailabilityInfo(0.5f) { StartTime = 600, EndTime = 2600 };
 
-                    var locations = this.GetLocationNames(locName);
+                    var locations = this.GetLocationNames(locName, isLegendary);
                     info = info with { IncludeLocations = locations };
 
                     if (!string.IsNullOrEmpty(spawnData.Condition))
@@ -174,7 +166,6 @@ namespace TehPers.FishingOverhaul.Services
                         info = this.ParseConditionString(spawnData.Condition, info, locName);
                     }
 
-                    // Position du joueur (Ex: Angler)
                     if (spawnData.PlayerPosition is { } pRect)
                     {
                         var xMax = pRect.X + pRect.Width;
@@ -187,7 +178,6 @@ namespace TehPers.FishingOverhaul.Services
                         };
                     }
 
-                    // Position du bouchon (Ex: Legend)
                     if (spawnData.BobberPosition is { } bRect)
                     {
                         info = info with
@@ -196,12 +186,17 @@ namespace TehPers.FishingOverhaul.Services
                         };
                     }
 
-                    // Restrictions Légendaires
+                    // --- CRITICAL FIX FOR RECATCHABLE LEGENDARIES ---
                     if (isVanillaLegendary)
                     {
+                        // 1. Remove existing vanilla checks (e.g., from other mods like SVE)
+                        var cleanedWhen = info.When.Where(pair => !pair.Key.Contains("!PLAYER_HAS_CAUGHT_FISH") && !pair.Key.Contains("!PLAYER_HAS_CAUGHT_FISH_AT_LOCATION"));
+                        info = info with { When = cleanedWhen.ToImmutableDictionary() };
+
+                        // 2. Add our custom smart rule
                         info = info with
                         {
-                            When = info.When.Add($"Query: !PLAYER_HAS_CAUGHT_FISH Current {qualifiedId}", "true")
+                            When = info.When.Add($"Query: LEGENDARY_IS_RECHARGEABLE Current {qualifiedId}", "true")
                         };
                     }
                     else if (isFamilyLegendary)
@@ -214,17 +209,16 @@ namespace TehPers.FishingOverhaul.Services
 
                     fishEntries.Add(new FishEntry(fishKey, info));
 
-                    // Entrée Frénésie (Ignore Saisons/Heures/Météo)
                     if (!isVanillaLegendary && !isFamilyLegendary)
                     {
                         var frenzyInfo = info with
                         {
                             BaseChance = 5.0f,
-                            Seasons = Seasons.Spring | Seasons.Summer | Seasons.Fall | Seasons.Winter, // Toute saison
-                            Weathers = Weathers.All, // Toute météo
-                            StartTime = 600, // Toute heure
+                            Seasons = Seasons.Spring | Seasons.Summer | Seasons.Fall | Seasons.Winter,
+                            Weathers = Weathers.All,
+                            StartTime = 600,
                             EndTime = 2600,
-                            MinFishingLevel = 0, // Pas de niveau requis
+                            MinFishingLevel = 0,
                             When = info.When.Add($"Query: CATCHING_FRENZY_FISH {qualifiedId}", "true")
                         };
                         fishEntries.Add(new FishEntry(fishKey, frenzyInfo));
@@ -232,7 +226,7 @@ namespace TehPers.FishingOverhaul.Services
                 }
             }
 
-            // --- ETAPE 3 : Injections Manuelles ---
+            // --- STEP 3: Manual Injections ---
             if (fishTraits.ContainsKey(NamespacedKey.SdvObject(158)))
             {
                 var locs = new List<string>();
@@ -310,8 +304,13 @@ namespace TehPers.FishingOverhaul.Services
             return NamespacedKey.SdvObject(cleanId);
         }
 
-        private ImmutableArray<string> GetLocationNames(string locationName)
+        private ImmutableArray<string> GetLocationNames(string locationName, bool isLegendary = false)
         {
+            if (isLegendary)
+            {
+                return ImmutableArray.Create(locationName);
+            }
+
             return locationName switch
             {
                 "Beach" => ImmutableArray.Create("Beach", "BeachNightMarket", "Farm/Beach"),
@@ -447,31 +446,18 @@ namespace TehPers.FishingOverhaul.Services
                     case "RANDOM":
                         break;
                     default:
-                        if (cond.Contains("HasFlag") || cond.Contains("TehPers"))
+                        if (cond.Contains("!PLAYER_HAS_CAUGHT_FISH") || cond.Contains("!PLAYER_HAS_CAUGHT_FISH_AT_LOCATION"))
+                        {
+                            // Do nothing (skip adding this condition)
+                        }
+                        else
                         {
                             unparsedConditions[$"Query: {cond.Trim()}"] = "true";
                         }
                         break;
                 }
             }
-
-            var seasons = newSeasons != Seasons.None ? newSeasons : baseInfo.Seasons;
-            var weathers = newWeather != Weathers.None ? newWeather : baseInfo.Weathers;
-            var startTime = newStart ?? baseInfo.StartTime;
-            var endTime = newEnd ?? baseInfo.EndTime;
-            var minLevel = newLevel ?? baseInfo.MinFishingLevel;
-            var locs = newLocations.Any() ? newLocations.ToImmutableArray() : baseInfo.IncludeLocations;
-
-            return baseInfo with
-            {
-                Seasons = seasons,
-                Weathers = weathers,
-                StartTime = startTime,
-                EndTime = endTime,
-                MinFishingLevel = minLevel,
-                IncludeLocations = locs,
-                When = unparsedConditions.ToImmutableDictionary()
-            };
+            return baseInfo with { Seasons = newSeasons != Seasons.None ? newSeasons : baseInfo.Seasons, Weathers = newWeather != Weathers.None ? newWeather : baseInfo.Weathers, StartTime = newStart ?? baseInfo.StartTime, EndTime = newEnd ?? baseInfo.EndTime, MinFishingLevel = newLevel ?? baseInfo.MinFishingLevel, IncludeLocations = newLocations.Any() ? newLocations.ToImmutableArray() : baseInfo.IncludeLocations, When = unparsedConditions.ToImmutableDictionary() };
         }
     }
 }

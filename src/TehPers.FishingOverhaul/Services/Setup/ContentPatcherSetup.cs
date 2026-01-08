@@ -39,44 +39,50 @@ namespace TehPers.FishingOverhaul.Services.Setup
 
         public void Setup()
         {
+            // 1. Enregistrement principal (Pour votre mod)
+            this.RegisterAllTokens(this.manifest);
+
+            // 2. Enregistrement Legacy (Pour la compatibilité)
+            IManifest legacyManifest = new LegacyIdManifest(this.manifest, "TehPers.FishingOverhaul");
+            this.RegisterAllTokens(legacyManifest);
+        }
+
+        private void RegisterAllTokens(IManifest owner)
+        {
+            this.contentPatcherApi.RegisterToken(owner, "BooksFound", new BooksFoundToken());
+            this.contentPatcherApi.RegisterToken(owner, "HasItem", new HasItemToken());
             this.contentPatcherApi.RegisterToken(
-                this.manifest,
-                "BooksFound",
-                new BooksFoundToken()
-            );
-            this.contentPatcherApi.RegisterToken(this.manifest, "HasItem", new HasItemToken());
-            this.contentPatcherApi.RegisterToken(
-                this.manifest,
+                owner,
                 "SpecialOrderRuleActive",
                 new MaybeReadyToken(ContentPatcherSetup.GetSpecialOrderRuleActive)
             );
             this.contentPatcherApi.RegisterToken(
-                this.manifest,
+                owner,
                 "MissingSecretNotes",
                 this.missingSecretNotesToken
             );
             this.contentPatcherApi.RegisterToken(
-                this.manifest,
+                owner,
                 "MissingJournalScraps",
                 this.missingJournalScrapsToken
             );
             this.contentPatcherApi.RegisterToken(
-                this.manifest,
+                owner,
                 "RandomGoldenWalnuts",
                 new MaybeReadyToken(ContentPatcherSetup.GetRandomGoldenWalnuts)
             );
             this.contentPatcherApi.RegisterToken(
-                this.manifest,
+                owner,
                 "TidePoolGoldenWalnut",
                 new MaybeReadyToken(ContentPatcherSetup.GetTidePoolGoldenWalnut)
             );
             this.contentPatcherApi.RegisterToken(
-                this.manifest,
+                owner,
                 "ActiveBait",
                 new MaybeReadyToken(ContentPatcherSetup.GetActiveBait)
             );
             this.contentPatcherApi.RegisterToken(
-                this.manifest,
+                owner,
                 "ActiveTackle",
                 new MaybeReadyToken(ContentPatcherSetup.GetActiveTackle)
             );
@@ -158,12 +164,7 @@ namespace TehPers.FishingOverhaul.Services.Setup
             }
 
             var bait = rod.GetBait();
-            if (bait is null)
-            {
-                return Enumerable.Empty<string>();
-            }
-
-            return new[] { NamespacedKey.SdvObject(bait.ItemId).ToString() };
+            return bait is null ? Enumerable.Empty<string>() : new[] { NamespacedKey.SdvObject(bait.ItemId).ToString() };
         }
 
         private static IEnumerable<string>? GetActiveTackle()
@@ -179,10 +180,36 @@ namespace TehPers.FishingOverhaul.Services.Setup
                 return Enumerable.Empty<string>();
             }
 
-            // CORRECTIF CRITIQUE : Filtrer les valeurs nulles (slots vides) pour éviter le crash
             return tackleList
                 .Where(tackle => tackle != null)
                 .Select(tackle => NamespacedKey.SdvObject(tackle.ItemId).ToString());
+        }
+
+        /// <summary>
+        /// A wrapper around IManifest to spoof the UniqueID.
+        /// </summary>
+        private class LegacyIdManifest : IManifest
+        {
+            private readonly IManifest original;
+            public string UniqueID { get; }
+
+            public LegacyIdManifest(IManifest original, string legacyId)
+            {
+                this.original = original;
+                this.UniqueID = legacyId;
+            }
+
+            public string Name => this.original.Name;
+            public string Description => this.original.Description;
+            public string Author => this.original.Author;
+            public ISemanticVersion Version => this.original.Version;
+            public ISemanticVersion? MinimumApiVersion => this.original.MinimumApiVersion;
+            public string? EntryDll => this.original.EntryDll;
+            public IManifestContentPackFor? ContentPackFor => this.original.ContentPackFor;
+            public IManifestDependency[] Dependencies => this.original.Dependencies;
+            public string[] UpdateKeys => this.original.UpdateKeys;
+            public IDictionary<string, object> ExtraFields => this.original.ExtraFields;
+            public ISemanticVersion? MinimumGameVersion => this.original.MinimumGameVersion;
         }
     }
 }

@@ -60,6 +60,22 @@ namespace TehPers.FishingOverhaul.Config
         [DefaultValue(null)]
         public int? MaxNormalFishQuality { get; set; }
 
+        // --- NEW: Options for Recatchable Legendaries ---
+
+        /// <summary>
+        /// Whether legendary fish can be caught multiple times.
+        /// </summary>
+        [DefaultValue(false)]
+        public bool RecatchableLegendaries { get; set; } = false;
+
+        /// <summary>
+        /// How often legendary fish can be recaught.
+        /// </summary>
+        [DefaultValue(RecatchFrequency.Season)]
+        public RecatchFrequency RecatchFrequency { get; set; } = RecatchFrequency.Season;
+
+        // ------------------------------------------------
+
         /// <summary>
         /// The chance that you'll find a fish instead of trash.
         /// </summary>
@@ -83,6 +99,10 @@ namespace TehPers.FishingOverhaul.Config
             this.StreakForIncreasedQuality = 3;
             this.MaxNormalFishQuality = null;
             this.MaxFishQuality = 3;
+
+            // Recatchable defaults
+            this.RecatchableLegendaries = false;
+            this.RecatchFrequency = RecatchFrequency.Season;
 
             // Fish chances
             this.FishChances.BaseChance = 0.5;
@@ -167,7 +187,7 @@ namespace TehPers.FishingOverhaul.Config
                 },
                 () => Name("maxNormalFishQuality"),
                 () => Desc("maxNormalFishQuality"),
-                new[] {"disabled", "basic", "silver", "gold", "iridium"},
+                new[] { "disabled", "basic", "silver", "gold", "iridium" },
                 val => Text(val)
             );
             configApi.AddTextOption(
@@ -188,9 +208,35 @@ namespace TehPers.FishingOverhaul.Config
                 },
                 () => Name("maxFishQuality"),
                 () => Desc("maxFishQuality"),
-                new[] {"basic", "silver", "gold", "iridium"},
+                new[] { "basic", "silver", "gold", "iridium" },
                 val => Text(val)
             );
+
+            // --- SECTION LEGENDARY ---
+            configApi.AddSectionTitle(
+                manifest,
+                () => Name("legendarySection"),
+                () => Desc("legendarySection")
+            );
+
+            configApi.AddBoolOption(
+                manifest,
+                () => this.RecatchableLegendaries,
+                val => this.RecatchableLegendaries = val,
+                () => Name("recatchableLegendaries"),
+                () => Desc("recatchableLegendaries")
+            );
+
+            configApi.AddTextOption(
+                manifest,
+                () => this.RecatchFrequency.ToString(),
+                val => this.RecatchFrequency = Enum.Parse<RecatchFrequency>(val),
+                () => Name("recatchFrequency"),
+                () => Desc("recatchFrequency"),
+                Enum.GetNames(typeof(RecatchFrequency)),
+                val => translations.Get($"text.config.frequency.{val}")
+            );
+            // -------------------------
 
             // Fish chances
             configApi.AddSectionTitle(
@@ -247,5 +293,46 @@ namespace TehPers.FishingOverhaul.Config
                 }
             };
         }
+    }
+
+    /// <summary>
+    /// Specifies the frequency at which legendary fish can be recaught.
+    /// </summary>
+    public enum RecatchFrequency
+    {
+        /// <summary>
+        /// Legendary fish can be caught again immediately.
+        /// </summary>
+        Always,
+
+        /// <summary>
+        /// Legendary fish can be caught once per day.
+        /// </summary>
+        Daily,
+
+        /// <summary>
+        /// Legendary fish can be caught every two days.
+        /// </summary>
+        EveryTwoDays,
+
+        /// <summary>
+        /// Legendary fish can be caught once per week.
+        /// </summary>
+        Weekly,
+
+        /// <summary>
+        /// Legendary fish can be caught once every two weeks.
+        /// </summary>
+        BiWeekly,
+
+        /// <summary>
+        /// Legendary fish can be caught once per season (28 days).
+        /// </summary>
+        Season,
+
+        /// <summary>
+        /// Legendary fish can be caught once per year (112 days).
+        /// </summary>
+        Year
     }
 }

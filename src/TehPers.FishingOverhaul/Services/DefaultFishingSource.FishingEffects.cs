@@ -47,7 +47,7 @@ namespace TehPers.FishingOverhaul.Services
                         },
                         When = new Dictionary<string, string?>
                         {
-                            ["TehPers.FishingOverhaul/TidePoolGoldenWalnut"] = "false",
+                            ["Hiztaar.FishingOverhaulRevived/TidePoolGoldenWalnut"] = "false",
                         }.ToImmutableDictionary(),
                     }
                 };
@@ -82,7 +82,7 @@ namespace TehPers.FishingOverhaul.Services
                         {
                             [$"HasFlag |contains={GameLocation.CAROLINES_NECKLACE_MAIL}"] =
                                 "false",
-                            [$"TehPers.FishingOverhaul/MissingSecretNotes |contains={GameLocation.NECKLACE_SECRET_NOTE_INDEX}"] =
+                            [$"Hiztaar.FishingOverhaulRevived/MissingSecretNotes |contains={GameLocation.NECKLACE_SECRET_NOTE_INDEX}"] =
                                 "false",
                         }.ToImmutableDictionary(),
                     }

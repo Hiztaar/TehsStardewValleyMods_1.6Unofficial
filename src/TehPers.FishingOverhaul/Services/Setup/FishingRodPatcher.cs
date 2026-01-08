@@ -130,8 +130,19 @@ namespace TehPers.FishingOverhaul.Services.Setup
                     break;
             }
 
-            var sizeDepthFactor = 1f * (fishingInfo.BobberDepth / 5f);
-            var sizeLevelFactor = 1 + fishingInfo.FishingLevel / 2;
+            // --- 1.6 BAIT DETECTION ---
+            var bait = rod.GetBait();
+            var baitId = bait?.QualifiedItemId;
+            var isChallengeBait = baitId == "(O)ChallengeBait";
+            var isDeluxeBait = baitId == "(O)DeluxeBait";
+
+            // Deluxe Bait Effect: +2 Fishing Level (Increases Bar Size)
+            var effectiveFishingInfo = isDeluxeBait
+                ? fishingInfo with { FishingLevel = fishingInfo.FishingLevel + 2 }
+                : fishingInfo;
+
+            var sizeDepthFactor = 1f * (effectiveFishingInfo.BobberDepth / 5f);
+            var sizeLevelFactor = 1 + effectiveFishingInfo.FishingLevel / 2;
             var sizeFactor = sizeDepthFactor * Game1.random.Next(sizeLevelFactor, Math.Max(6, sizeLevelFactor)) / 5f;
             if (rod.favBait)
             {
@@ -139,10 +150,11 @@ namespace TehPers.FishingOverhaul.Services.Setup
             }
 
             var fishSizePercent = Math.Clamp(sizeFactor * (1.0f + Game1.random.Next(-10, 11) / 100.0f), 0.0f, 1.0f);
-            var treasure = !Game1.isFestival() && fishingInfo.User.fishCaught?.Count() > 1 && Game1.random.NextDouble() < this.fishingApi.GetChanceForTreasure(fishingInfo);
+            var treasure = !Game1.isFestival() && fishingInfo.User.fishCaught?.Count() > 1 && Game1.random.NextDouble() < this.fishingApi.GetChanceForTreasure(effectiveFishingInfo);
 
+            // Crash Fix: Filter null tackle using Where clause
             var customBobber = this.customBobberBarFactory.Create(
-                fishingInfo,
+                effectiveFishingInfo,
                 fishEntry,
                 fishItem,
                 fishSizePercent,
@@ -191,6 +203,15 @@ namespace TehPers.FishingOverhaul.Services.Setup
 
             customBobber.CatchFish += (_, info) =>
             {
+                // --- CHALLENGE BAIT LOGIC ---
+                if (isChallengeBait && info is CatchInfo.FishCatch fishCatch)
+                {
+                    // Perfect = 3 fish
+                    // Not Perfect = 1 fish
+                    var amount = info.State.IsPerfect ? 3 : 1;
+                    info = fishCatch with { NumberOfFishCaught = amount };
+                }
+
                 switch (info.State)
                 {
                     case (true, _): // Perfect
@@ -265,6 +286,13 @@ namespace TehPers.FishingOverhaul.Services.Setup
                 rod.fishQuality = Math.Max(fishQuality, 0);
                 rod.fromFishPond = fromFishPond;
                 rod.numberOfFishCaught = numberOfFishCaught;
+
+                // --- RECATCHABLE LEGENDARIES DATE ---
+                if (isLegendary && !fromFishPond && fishingInfo.User.IsLocalPlayer)
+                {
+                    // Save the current day (DaysPlayed) for this specific fish
+                    fishingInfo.User.modData[$"Hiztaar.FishingOverhaulRevived/LastCaught_{itemId}"] = Game1.stats.DaysPlayed.ToString();
+                }
 
                 if (!Game1.isFestival() && fishingInfo.User.IsLocalPlayer && !fromFishPond)
                 {
@@ -437,6 +465,35 @@ namespace TehPers.FishingOverhaul.Services.Setup
                 if (hasData && itemId != null)
                 {
                     rod.recordSize = user.caughtFish(itemId, fishSize, fromFishPond, stack);
+
+                    // --- FIX: TROUT DERBY GOLDEN TAGS ---
+                    // Rainbow Trout ID is "138" or "(O)138".
+                    // Logic: Summer 20 & 21, Location 'Forest', 33% chance per fish caught.
+                    if ((itemId == "138" || itemId == "(O)138") && !fromFishPond && user.currentLocation is StardewValley.Locations.Forest)
+                    {
+                        if (Game1.currentSeason == "summer" && (Game1.dayOfMonth == 20 || Game1.dayOfMonth == 21))
+                        {
+                            // Loop for each fish caught (e.g. 3 times if Challenge Bait was perfect)
+                            for (var i = 0; i < stack; i++)
+                            {
+                                if (Game1.random.NextDouble() < 0.33)
+                                {
+                                    // CORRECT ID: TroutDerbyTag (Qualified: (O)TroutDerbyTag)
+                                    var tag = StardewValley.ItemRegistry.Create("(O)TroutDerbyTag", 1);
+                                    if (user.addItemToInventoryBool(tag))
+                                    {
+                                        user.currentLocation.playSound("coin");
+                                        Game1.addHUDMessage(new HUDMessage("Caught a Golden Tag!", 1));
+                                    }
+                                    else
+                                    {
+                                        Game1.createItemDebris(tag, user.Position, 2);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // ------------------------------------
                 }
                 user.faceDirection(2);
             }
@@ -450,10 +507,11 @@ namespace TehPers.FishingOverhaul.Services.Setup
                 rod.doneFishing(user);
             }
 
-            if (info is CatchInfo.FishCatch { IsLegendary: true })
+            // Fixed CS8602: added null check for info.Item
+            if (info is CatchInfo.FishCatch { IsLegendary: true } && info.Item != null)
             {
                 Game1.showGlobalMessage(Game1.content.LoadString(@"Strings\StringsFromCSFiles:FishingRod.cs.14068"));
-                this.game1MultiplayerField.GetValue().globalChatInfoMessage("CaughtLegendaryFish", Game1.player.Name, info.Item.DisplayName);
+                this.game1MultiplayerField.GetValue().globalChatInfoMessage("CaughtLegendaryFish", Game1.player?.Name ?? "Player", info.Item.DisplayName);
             }
             else if (rod.recordSize)
             {

@@ -42,5 +42,5 @@ To use the API, check out the [API docs][api docs].
 This mod is licensed under MIT License. The source code and full license text can be found on the [GitHub repository][github repo].
 
 [gmcm]: https://www.nexusmods.com/stardewvalley/mods/5098
-[api docs (Outdated)]: ../../docs/TehPers.FishingOverhaul/API.md
+[api docs]: ../../docs/TehPers.FishingOverhaul/API.md
 [github repo]: ../../

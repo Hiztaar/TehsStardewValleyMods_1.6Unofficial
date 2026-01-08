@@ -8,7 +8,7 @@ namespace TehPers.FishingOverhaul.Config
     public abstract record JsonConfigRoot
     {
         private protected const string jsonSchemaRootUrl =
-            "https://raw.githubusercontent.com/TehPers/StardewValleyMods/master/docs/TehPers.FishingOverhaul/schemas/";
+            "https://raw.githubusercontent.com/Hiztaar/TehsStardewValleyMods_1.6Revived/blob/main/docs/TehPers.FishingOverhaul/schemas/";
 
         /// <summary>
         /// Optional '$schema' URL. This is ignored and exists entirely for convenience.
