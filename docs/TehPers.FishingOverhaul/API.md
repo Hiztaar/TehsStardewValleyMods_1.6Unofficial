@@ -1,89 +1,138 @@
-# Teh's Fishing Overhaul - API
+# Teh's Fishing Overhaul Revived - API
 
-There are two separate APIs exposed by Teh's Fishing Overhaul:
+**Teh's Fishing Overhaul Revived** provides a public API that other mods can use to interact with the fishing system, modify chances, query data, or add custom content.
 
-- **Simplified API:** Any mod can access this API through SMAPI's mod registry.
-- **Full API:** This API is accessible through TehCore (even as an optional dependency).
+## Accessing the API
 
-## Simplified API
+The API is exposed through SMAPI's standard mod registry.
 
-The simplified API is exposed through SMAPI's mod registry. This is the standard way of accessing APIs through SMAPI. To access it, first copy the [`ISimplifiedFishingApi`][simplified interface] interface to your C# project. Afterwards, add a dependency (or optional dependency) to `TehPers.FishingOverhaul` to your mod's `manifest.json`. Finally, you can access the API through the mod registry:
+To access it, you first need to reference the **API assembly** in your project.
 
-```cs
-var fishingApi = helper.ModRegistry.GetApi<ISimplifiedFishingApi>("TehPers.FishingOverhaul");
-```
+### 1. Add References
 
-Each of the methods on the simplified API should be documented, so make sure to read the docs to see how to use them. There are several methods which either accept or return stringified representations of `NamespacedKey`. Those values follow the format `"<namespace>:<key>"`. For example, `"StardewValley:Object/832"` is the stringified key for pineapples. The [content pack docs] have more details on how these strings are formatted.
-
-## Full API
-
-> **Note:** This section is still a work-in-progress.
-
-Unfortunately, due to the restrictive nature of SMAPI's built in mod API support, it isn't possible to expose the full API through the mod registry. Instead, the full API is accessible through TehCore. Accessing it is fairly straightforward, you just need to request the type from something called your mod kernel either directly or through dependency injection. For more details on what "kernels" and "dependency injection" are, visit the [Ninject docs][ninject docs]. However, it isn't necessary to know either of those things to access the fishing API.
-
-To reference the Fishing API from your mod, add the following to your project's `.csproj` file:
+Add the following to your project's `.csproj` file. This assumes you have the mod installed in your game's `Mods` folder for development.
 
 ```xml
-<PropertyGroup>
-    <!-- ... -->
-
-    <!-- Add this to the property group below everything else -->
-    <BundleExtraAssemblies>ThirdParty</BundleExtraAssemblies>
-    <!-- Remove unnecessary output files -->
-    <IgnoreModFilePatterns>^TehPers\.Core\.Api\.(dll|pdb|xml)$, ^TehPers\.FishingOverhaul\.Api\.(dll|pdb|xml)$, ^Ninject\.dll$</IgnoreModFilePatterns>
-</PropertyGroup>
-
 <ItemGroup>
-    <!-- These should point to the different APIs in your Mods folder - change these if needed -->
-    <Reference Include="$(GameModsPath)/TehPers.Core/TehPers.Core.Api.dll" />
-    <Reference Include="$(GameModsPath)/TehPers.FishingOverhaul/TehPers.FishingOverhaul.Api.dll" />
+    <Reference Include="TehPers.FishingOverhaul.Api">
+        <HintPath>$(GameModsPath)\TehPers.FishingOverhaul\TehPers.FishingOverhaul.Api.dll</HintPath>
+        <Private>false</Private>
+    </Reference>
+    <Reference Include="TehPers.Core.Api">
+        <HintPath>$(GameModsPath)\TehPers.Core\TehPers.Core.Api.dll</HintPath>
+        <Private>false</Private>
+    </Reference>
 </ItemGroup>
+
 ```
 
-If you compile your mod, you should not see any new files added to your mod's output directory. However, you should be able to access the API now.
+> **Note:** Set `<Private>false</Private>` (or `CopyLocal` to `false`) to ensure these DLLs are not copied into your mod's release folder.
 
-**Make sure to add `TehPers.FishingOverhaul` and `TehPers.Core` as dependencies to your mod's manifest!** If your mod does not need them to function, then add them as optional dependencies so that they are loaded first.
+### 2. Mod Dependencies
 
-### Requesting the API instance
+In your `manifest.json`, add a dependency to `Hiztaar.FishingOverhaulRevived` to ensure it loads before your mod.
 
-The different API types can be pulled through a mod kernel. For more information, check out the relevant documentation on the TehCore API. In short, create your mod kernel and request the types that you need:
+```json
+"Dependencies": [
+   {
+      "UniqueID": "Hiztaar.FishingOverhaulRevived",
+      "IsRequired": true
+   }
+]
 
-```cs
-// YourMod.cs (class that extends StardewValleyAPI.Mod)
+```
 
-// Request the mod kernel
+### 3. Request the API
+
+In your `ModEntry.cs`, request the API using the unique ID `Hiztaar.FishingOverhaulRevived`:
+
+```csharp
+using TehPers.FishingOverhaul.Api;
+
+public override void Entry(IModHelper helper)
+{
+    var fishingApi = helper.ModRegistry.GetApi<IFishingApi>("Hiztaar.FishingOverhaulRevived");
+
+    if (fishingApi != null)
+    {
+        this.Monitor.Log("Fishing Overhaul API loaded!", LogLevel.Info);
+    }
+}
+
+```
+
+---
+
+## API Features (`IFishingApi`)
+
+The `IFishingApi` interface is the primary entry point. It allows you to calculate chances, preview loot, and manage player streaks.
+
+### Fishing Info & Calculations
+
+* **`CreateDefaultFishingInfo(Farmer farmer)`**: Creates a snapshot of the fishing context (location, bait, bobber, etc.) for a player. This object is required for most calculation methods.
+* **`GetChanceForFish(FishingInfo info)`**: Returns the probability (0.0 to 1.0) that a cast will result in a fish bite rather than trash.
+* **`GetChanceForTreasure(FishingInfo info)`**: Returns the probability (0.0 to 1.0) of a treasure chest appearing.
+
+### Loot Tables
+
+These methods return weighted lists of potential catches for a specific context.
+
+* **`GetFishChances(FishingInfo info)`**: Returns all available fish and their weights.
+* **`GetTrashChances(FishingInfo info)`**: Returns all available trash items.
+* **`GetTreasureChances(FishingInfo info)`**: Returns all available treasure loot.
+* **`GetPossibleCatch(FishingInfo info)`**: Simulates a single catch (returns either a `Fish` or `Trash` result).
+* **`GetPossibleTreasure(CatchInfo.FishCatch catchInfo)`**: Simulates opening a treasure chest.
+
+### Fish Data
+
+* **`TryGetFishTraits(NamespacedKey fishKey, out FishTraits traits)`**: Retrieves data about a fish (difficulty, behavior, legendary status).
+* **`IsLegendary(NamespacedKey fishKey)`**: Helper to check if a fish is legendary.
+
+### Player State
+
+* **`GetStreak(Farmer farmer)`**: Gets the player's current "Perfect" fishing streak.
+* **`SetStreak(Farmer farmer, int streak)`**: Modifies the player's streak.
+
+---
+
+## Adding Custom Content (`IFishingContentSource`)
+
+To add **new** fishing content (like custom fish rules, new treasure, or trash entries) via code instead of JSON content packs, you can implement `IFishingContentSource`.
+
+> **Note:** This requires using the Dependency Injection system provided by `TehPers.Core`.
+
+1. Create a class that implements `IFishingContentSource`.
+2. Inject it into the kernel in your Mod Entry:
+
+```csharp
+// Request the mod kernel from TehPers.Core
 var kernel = ModServices.Factory.GetKernel(this);
 
-// Inject any content sources you want. Make sure to inject any dependencies they have as well.
-// Several types are automatically injected for you, including IModHelper and IManifest.
-// Note that you must use 'GlobalProxyRoot' to expose your service to Teh's Fishing Overhaul.
+// Bind your content source so Fishing Overhaul can find it
 kernel.GlobalProxyRoot
     .Bind<IFishingContentSource>()
-    .To<YourContentSource>() // or .ToMethod, or .ToConstant, whatever works for you
-    .InSingletonScope(); // any scope works fine
+    .To<YourContentSource>()
+    .InSingletonScope();
 
-// Request the fishing API
-var fishingApi = kernel.Get<IFishingApi>();
 ```
 
-### `IFishingApi`
+Whenever your content changes (e.g. config update), call `IFishingApi.RequestReload()` to force the mod to rebuild its cache.
 
-This interface exposes the primary fishing API. This interface primarily acts as a source of truth for how fishing should behave. New content cannot be added through this interface, however it can be used to see how fishing behaves with the content that is already loaded. For example, a separate fishing HUD mod could use this interface to see what fish can be caught by a farmer, what the chances of catching those fish are, and which of those fish are legendary. Similarly, treasure and trash can be retrieved from this interface.
+---
 
-Make sure to read the documentation for how to use the interface. To actually create instances of the items from their `NamespacedKey`s, look at `INamespaceRegistry` from the TehCore API.
+## Namespaced Keys
 
-TODO: ^ these docs don't actually exist yet...
+The API uses `NamespacedKey` to identify items.
 
-TODO: maybe link to the core mod docs?
+* **Format:** `"<namespace>:<key>"`
+* **Example:** `"StardewValley:Object/138"` (Rainbow Trout)
 
-### `IFishingContentSource`
+You can create these using helper methods:
 
-This interface allows custom fishing content to be added to the game. Fishing content includes:
+```csharp
+var key = NamespacedKey.SdvObject(138);
+```
 
-- Adding new fish traits to allow items to be treated as fish
-- Adding new fish/trash/treasure entries to make items catchable as fish/trash/treasure
-
-The interface is fairly straightforward, so make sure to read the documentation for it. Whenever fishing content should be reloaded, make sure to invoke `IFishingApi.RequestReload()`.
 
 [simplified interface]: /TehPers.FishingOverhaul.Api/ISimplifiedFishingApi.cs
 [content pack docs]: /docs/TehPers.FishingOverhaul/Content%20Packs.md
